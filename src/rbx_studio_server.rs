@@ -3,14 +3,16 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{extract::State, Json};
 use color_eyre::eyre::{Error, OptionExt};
-use rmcp::model::{
-    CallToolResult, Content, ErrorData, Implementation, ProtocolVersion, ServerCapabilities,
-    ServerInfo,
+use rmcp::{
+    handler::server::tool::Parameters,
+    model::{
+        CallToolResult, Content, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
+    },
+    schemars, tool, tool_handler, tool_router, ErrorData, ServerHandler,
 };
-use rmcp::tool;
-use rmcp::{Error as McpError, ServerHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
+use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::oneshot::Receiver;
 use tokio::sync::{mpsc, watch, Mutex};
@@ -70,9 +72,10 @@ impl ToolArguments {
 #[derive(Clone)]
 pub struct RBXStudioServer {
     state: PackedState,
+    tool_router: rmcp::handler::server::tool::ToolRouter<Self>,
 }
 
-#[tool(tool_box)]
+#[tool_handler]
 impl ServerHandler for RBXStudioServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
@@ -87,15 +90,29 @@ impl ServerHandler for RBXStudioServer {
     }
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug)]
-enum ToolArgumentValues {
-    RunCode { command: String },
-    InsertModel { query: String },
+#[derive(Debug, Deserialize, Serialize, schemars::JsonSchema, Clone)]
+struct RunCode {
+    #[schemars(description = "Code to run")]
+    command: String,
 }
-#[tool(tool_box)]
+#[derive(Debug, Deserialize, Serialize, schemars::JsonSchema, Clone)]
+struct InsertModel {
+    #[schemars(description = "Query to search for the model")]
+    query: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, schemars::JsonSchema, Clone)]
+enum ToolArgumentValues {
+    RunCode(RunCode),
+    InsertModel(InsertModel),
+}
+#[tool_router]
 impl RBXStudioServer {
     pub fn new(state: PackedState) -> Self {
-        Self { state }
+        Self {
+            state,
+            tool_router: Self::tool_router(),
+        }
     }
 
     #[tool(
@@ -103,11 +120,9 @@ impl RBXStudioServer {
     )]
     async fn run_code(
         &self,
-        #[tool(param)]
-        #[schemars(description = "code to run")]
-        command: String,
-    ) -> Result<CallToolResult, McpError> {
-        self.generic_tool_run(ToolArgumentValues::RunCode { command })
+        Parameters(args): Parameters<RunCode>,
+    ) -> Result<CallToolResult, ErrorData> {
+        self.generic_tool_run(ToolArgumentValues::RunCode(args))
             .await
     }
 
@@ -116,15 +131,16 @@ impl RBXStudioServer {
     )]
     async fn insert_model(
         &self,
-        #[tool(param)]
-        #[schemars(description = "Query to search for the model.")]
-        query: String,
-    ) -> Result<CallToolResult, McpError> {
-        self.generic_tool_run(ToolArgumentValues::InsertModel { query })
+        Parameters(args): Parameters<InsertModel>,
+    ) -> Result<CallToolResult, ErrorData> {
+        self.generic_tool_run(ToolArgumentValues::InsertModel(args))
             .await
     }
 
-    async fn generic_tool_run(&self, args: ToolArgumentValues) -> Result<CallToolResult, McpError> {
+    async fn generic_tool_run(
+        &self,
+        args: ToolArgumentValues,
+    ) -> Result<CallToolResult, ErrorData> {
         let (command, id) = ToolArguments::new(args);
         tracing::debug!("Running command: {:?}", command);
         let (tx, mut rx) = mpsc::unbounded_channel::<Result<String>>();
