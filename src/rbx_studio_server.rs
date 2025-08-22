@@ -101,10 +101,19 @@ struct InsertModel {
     query: String,
 }
 
+// BEGIN ADDITION
+#[derive(Debug, Deserialize, Serialize, schemars::JsonSchema, Clone)]
+struct DeletePart {
+    #[schemars(description = "Name of the part to delete")]
+    part_name: String,
+}
+// END ADDITION
+
 #[derive(Debug, Deserialize, Serialize, schemars::JsonSchema, Clone)]
 enum ToolArgumentValues {
     RunCode(RunCode),
     InsertModel(InsertModel),
+    DeletePart(DeletePart),  // Add this line
 }
 #[tool_router]
 impl RBXStudioServer {
@@ -136,6 +145,17 @@ impl RBXStudioServer {
         self.generic_tool_run(ToolArgumentValues::InsertModel(args))
             .await
     }
+
+    // BEGIN ADDITION
+    #[tool(description = "Deletes a part from the workspace by name")]
+    async fn delete_part(
+        &self,
+        Parameters(args): Parameters<DeletePart>,
+    ) -> Result<CallToolResult, ErrorData> {
+        self.generic_tool_run(ToolArgumentValues::DeletePart(args))
+            .await
+    }
+    // END ADDITION
 
     async fn generic_tool_run(
         &self,
