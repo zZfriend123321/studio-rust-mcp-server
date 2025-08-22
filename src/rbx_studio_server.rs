@@ -107,14 +107,27 @@ struct DeletePart {
     #[schemars(description = "Name of the part to delete")]
     part_name: String,
 }
+
+#[derive(Debug, Deserialize, Serialize, schemars::JsonSchema, Clone)]
+struct GetProjectStructure {
+    #[schemars(description = "Detail level: 'minimal' or 'detailed'")]
+    detail: String,
+    #[schemars(description = "Maximum traversal depth (default: 5, max: 20)")]
+    max_depth: Option<u32>,
+    #[schemars(description = "Root path to start from (e.g. 'Workspace.Model1')")]
+    root_path: Option<String>,
+}
+
 // END ADDITION
 
 #[derive(Debug, Deserialize, Serialize, schemars::JsonSchema, Clone)]
 enum ToolArgumentValues {
     RunCode(RunCode),
     InsertModel(InsertModel),
-    DeletePart(DeletePart),  // Add this line
+    DeletePart(DeletePart),
+    GetProjectStructure(GetProjectStructure),
 }
+
 #[tool_router]
 impl RBXStudioServer {
     pub fn new(state: PackedState) -> Self {
@@ -154,6 +167,11 @@ impl RBXStudioServer {
     ) -> Result<CallToolResult, ErrorData> {
         self.generic_tool_run(ToolArgumentValues::DeletePart(args))
             .await
+    }
+
+    #[tool(description = "Gets project structure with configurable detail level")]
+    async fn get_project_structure(&self, Parameters(args): Parameters<GetProjectStructure>) -> Result<CallToolResult, ErrorData> {
+        self.generic_tool_run(ToolArgumentValues::GetProjectStructure(args)).await
     }
     // END ADDITION
 
