@@ -6,12 +6,26 @@ export type RunCodeArgs = {
 	command: string,
 }
 
-export type ToolFunction = (ToolArgs) -> string?
-
 export type DeletePartArgs = {
-    partName: string,
+	partName: string,
 }
 
-export type ToolArgs = { InsertModel: InsertModelArgs } | { RunCode: RunCodeArgs } | { DeletePart: DeletePartArgs }
+export type GetProjectStructureArgs = {
+	detail: string, -- "minimal" or "detailed"
+	maxDepth: number?,
+	rootPath: string?,
+}
+
+export type ToolArgs = { 
+	InsertModel: InsertModelArgs 
+} | { 
+	RunCode: RunCodeArgs 
+} | { 
+	DeletePart: DeletePartArgs 
+} | { 
+	GetProjectStructure: GetProjectStructureArgs 
+}
+
+export type ToolFunction = (ToolArgs) -> string?
 
 return {}
