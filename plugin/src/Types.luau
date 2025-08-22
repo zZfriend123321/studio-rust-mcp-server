@@ -6,8 +6,12 @@ export type RunCodeArgs = {
 	command: string,
 }
 
-export type ToolArgs = { InsertModel: InsertModelArgs } | { RunCode: RunCodeArgs }
-
 export type ToolFunction = (ToolArgs) -> string?
+
+export type DeletePartArgs = {
+    partName: string,
+}
+
+export type ToolArgs = { InsertModel: InsertModelArgs } | { RunCode: RunCodeArgs } | { DeletePart: DeletePartArgs }
 
 return {}
